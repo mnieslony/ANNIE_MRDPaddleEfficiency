@@ -104,9 +104,9 @@ void read_in_geom(std::string filename, std::map<int,std::vector<int>> &my_map_c
     } else {
       int chkey;
       int tdc_crate, tdc_slot, tdc_ch;
-      for (int i_label=0; i_label < labels.size(); i_label++) std::cout <<labels.at(i_label)<<std::endl;
+      //for (int i_label=0; i_label < labels.size(); i_label++) std::cout <<labels.at(i_label)<<std::endl;
       for (int i_row=0; i_row < (row.size()); i_row++){
-        std::cout <<"labels: "<<labels.at(i_row)<<std::endl;
+        //std::cout <<"labels: "<<labels.at(i_row)<<std::endl;
         if (labels.at(i_row)=="detector_num") chkey = stoi(row.at(i_row));
         else if (labels.at(i_row)=="rack") tdc_crate = stoi(row.at(i_row));
         else if (labels.at(i_row)=="TDC_slot") tdc_slot = stoi(row.at(i_row));
@@ -131,6 +131,117 @@ uint64_t timestamp_from_date(std::string str_date){
   timestamp = (duration.total_milliseconds())/1000;   //Convert milliseconds to seconds
 
   return timestamp;
+}
+
+void plot_electronics(TH1F *h_input, TCanvas* &c_output, std::map<int,std::vector<int>> geom_chkey_tdc, int call, double zmin, double zmax){
+
+  c_output->cd();
+  int num_slots = 24;
+  int num_channels = 32;
+
+  std::stringstream ss_name_crate1, ss_name_crate2;
+  ss_name_crate1 << "eff_crate1_"<<call;
+  ss_name_crate2 << "eff_crate2_"<<call;
+
+  TH2D *eff_crate1 = new TH2D(ss_name_crate1.str().c_str(),"Efficiency - Rack 7",num_slots,0,num_slots,num_channels,0,num_channels);
+  TH2D *eff_crate2 = new TH2D(ss_name_crate2.str().c_str(),"Efficiency - Rack 8",num_slots,0,num_slots,num_channels,0,num_channels);
+
+  eff_crate1->SetStats(0);
+  eff_crate1->GetXaxis()->SetNdivisions(num_slots);
+  eff_crate1->GetYaxis()->SetNdivisions(num_channels);
+  for (int i_label=0;i_label<int(num_channels);i_label++){
+    std::stringstream ss_slot, ss_ch;
+    ss_slot<<(i_label+1);
+    ss_ch<<(i_label);
+    std::string str_ch = "ch "+ss_ch.str();
+    eff_crate1->GetYaxis()->SetBinLabel(i_label+1,str_ch.c_str());
+    if (i_label<num_slots){
+      std::string str_slot = "slot "+ss_slot.str();
+      eff_crate1->GetXaxis()->SetBinLabel(i_label+1,str_slot.c_str());
+    }
+  }
+  eff_crate1->LabelsOption("v");
+  eff_crate2->SetStats(0);
+  eff_crate2->GetXaxis()->SetNdivisions(num_slots);
+  eff_crate2->GetYaxis()->SetNdivisions(num_channels);
+  for (int i_label=0;i_label<int(num_channels);i_label++){
+    std::stringstream ss_slot, ss_ch;
+    ss_slot<<(i_label+1);
+    ss_ch<<(i_label);
+    std::string str_ch = "ch "+ss_ch.str();
+    eff_crate2->GetYaxis()->SetBinLabel(i_label+1,str_ch.c_str());
+    if (i_label<num_slots){
+      std::string str_slot = "slot "+ss_slot.str();
+      eff_crate2->GetXaxis()->SetBinLabel(i_label+1,str_slot.c_str());
+        }
+    }
+  eff_crate2->LabelsOption("v");  
+
+  for (int i_bin=0; i_bin < h_input->GetXaxis()->GetNbins(); i_bin++){
+    double bin_content = h_input->GetBinContent(i_bin+1);
+    int temp_chkey = h_input->GetBinCenter(i_bin+1)-0.5;
+    std::vector<int> tdc = geom_chkey_tdc.at(temp_chkey);
+    int temp_crate = tdc.at(0);
+    if (temp_crate==7) eff_crate1->SetBinContent(tdc.at(1),tdc.at(2)+1,bin_content);
+    else eff_crate2->SetBinContent(tdc.at(1),tdc.at(2)+1,bin_content);
+  }
+
+c_output->cd();
+c_output->Divide(2,1);
+TPad *p1 = (TPad*) c_output->cd(1);
+p1->SetGrid();
+eff_crate1->GetZaxis()->SetRangeUser(zmin,zmax);
+eff_crate1->Draw("colz1");
+/*int inactive_crate1 = 0;
+int inactive_crate2 = 0;
+for (int i_slot=0;i_slot<num_slots;i_slot++){
+  if (active_channel[0][i_slot]==0){
+    TBox *box_inactive = new TBox(i_slot,0,i_slot+1,num_channels);
+    vector_box_inactive.push_back(box_inactive);
+    box_inactive->SetFillStyle(3004);
+    box_inactive->SetFillColor(1);
+    inactive_crate1++;
+  }
+}
+for (int i_ch = 0; i_ch < inactive_ch_crate1.size(); i_ch++){
+  std::cout <<"Inactive box (crate 1): Slot "<<inactive_slot_crate1.at(i_ch)<<", Channel "<<inactive_ch_crate1.at(i_ch)<<std::endl;
+  TBox *box_inactive = new TBox(inactive_slot_crate1.at(i_ch)-1,inactive_ch_crate1.at(i_ch),inactive_slot_crate1.at(i_ch),inactive_ch_crate1.at(i_ch)+1);
+  vector_box_inactive.push_back(box_inactive);
+  box_inactive->SetFillStyle(3004);
+  box_inactive->SetFillColor(1);
+  inactive_crate1++;
+}
+
+for (int i_slot=0;i_slot<num_slots;i_slot++){
+  if (active_channel[1][i_slot]==0){
+    TBox *box_inactive = new TBox(i_slot,0,i_slot+1,num_channels);
+    vector_box_inactive.push_back(box_inactive);
+    box_inactive->SetFillColor(1);
+    box_inactive->SetFillStyle(3004);
+    inactive_crate2++;
+  }
+}
+for (int i_ch = 0; i_ch < inactive_ch_crate2.size(); i_ch++){
+  std::cout <<"Inactive box (crate 2): Slot "<<inactive_slot_crate2.at(i_ch)<<", Channel "<<inactive_ch_crate2.at(i_ch)<<std::endl;
+  TBox *box_inactive = new TBox(inactive_slot_crate2.at(i_ch)-1,inactive_ch_crate2.at(i_ch),inactive_slot_crate2.at(i_ch),inactive_ch_crate2.at(i_ch)+1);
+  vector_box_inactive.push_back(box_inactive);
+  box_inactive->SetFillStyle(3004);
+  box_inactive->SetFillColor(1);
+  inactive_crate2++;
+}
+for (int i_ch=0; i_ch < inactive_crate1; i_ch++){
+  vector_box_inactive.at(i_ch)->Draw("same");
+}
+p1->Update();*/
+TPad *p2 = (TPad*) c_output->cd(2);
+p2->SetGrid();
+eff_crate2->GetZaxis()->SetRangeUser(zmin,zmax);
+eff_crate2->Draw("colz1");/*
+for (int i_ch = 0; i_ch < inactive_crate2; i_ch++){
+  vector_box_inactive.at(inactive_crate1+i_ch)->Draw("same");
+}
+p2->Update();*/
+
 }
 
 void time_evolution_eff(const char *configuration_file = "TimeEvolutionConfig"){
@@ -224,6 +335,10 @@ void time_evolution_eff(const char *configuration_file = "TimeEvolutionConfig"){
   TH1F *eff_diff_combined = new TH1F("eff_diff_combined","Efficiency differences (combined) - Channelkey",254,52,306);
   eff_diff_combined->GetXaxis()->SetTitle("Channelkey");
   eff_diff_combined->GetYaxis()->SetTitle("Efficiency diff combined");
+
+   TH1F *eff_diff_firstlast = new TH1F("eff_diff_firstlast","Efficiency differences (latest - earliest) - Channelkey",254,52,306);
+  eff_diff_firstlast->GetXaxis()->SetTitle("Channelkey");
+  eff_diff_firstlast->GetYaxis()->SetTitle("Efficiency diff latest-earliest");
 
   TH1F *eff_diff_1d = new TH1F("eff_diff_1d","Efficiency differences - Overall",100,-1,1);
   eff_diff_1d->GetXaxis()->SetTitle("Efficiency difference");
@@ -380,6 +495,7 @@ void time_evolution_eff(const char *configuration_file = "TimeEvolutionConfig"){
       eff_diff->Fill(i_eff+mrd_start,eff_file.at(i_f).at(i_eff)-eff_file.at(i_f-1).at(i_eff));
       eff_diff_1d->Fill(eff_file.at(i_f).at(i_eff)-eff_file.at(i_f-1).at(i_eff));
       eff_diff_combined->SetBinContent(i_eff+1,eff_diff_combined->GetBinContent(i_eff+1)+fabs(eff_file.at(i_f).at(i_eff)-eff_file.at(i_f-1).at(i_eff)));
+      if (i_f == eff_file.size()-1) eff_diff_firstlast->SetBinContent(i_eff+1,eff_file.at(i_f).at(i_eff)-eff_file.at(0).at(i_eff));
       eff_diff_run->SetBinContent(i_f+1,i_eff+1,eff_file.at(i_f).at(i_eff)-eff_file.at(i_f-1).at(i_eff));
       eff_run->SetBinContent(i_f+1,i_eff+1,eff_file.at(i_f).at(i_eff));
     }
@@ -528,6 +644,24 @@ void time_evolution_eff(const char *configuration_file = "TimeEvolutionConfig"){
   std::cout << std::endl;
   file_unstable.close();
 
+  gStyle->SetPalette(kCherry);
+  TColor::InvertPalette();
+
+  TCanvas *c_diff_electronics = new TCanvas("c_diff_electronics","Difference electronics view",900,600);
+  plot_electronics(eff_diff_combined,c_diff_electronics,geom_chkey_tdc,1,0,1.7);
+  std::stringstream ss_plot_diff;
+  ss_plot_diff << "efficiency_timeevolution/MRDEff_TimeEvolution_AbsoluteDeviations_"<<labels.at(0)<<"_"<<labels.at(labels.size()-1)<<".pdf";
+  c_diff_electronics->SaveAs(ss_plot_diff.str().c_str());
+
+  gStyle->SetPalette(kThermometer);
+  TColor::InvertPalette();
+
+  TCanvas *c_diff_firstlast = new TCanvas("c_diff_firstlast","Difference electronics view latest - earliest",900,600);
+  plot_electronics(eff_diff_firstlast,c_diff_firstlast,geom_chkey_tdc,2,-0.25,0.25);
+  std::stringstream ss_plot_diff_firstlast;
+  ss_plot_diff_firstlast << "efficiency_timeevolution/MRDEff_TimeEvolution_FirstLastDeviations_"<<labels.at(0)<<"_"<<labels.at(labels.size()-1)<<".pdf";
+  c_diff_firstlast->SaveAs(ss_plot_diff_firstlast.str().c_str());
+
   eff_diff->Write();
   eff_diff_1d->Write();
   eff_diff_run->Write();
@@ -541,10 +675,10 @@ void time_evolution_eff(const char *configuration_file = "TimeEvolutionConfig"){
   multi2->Write("multi2");
   //multi2_active->Write("multi2_active");
   inactive_ch->Write();
+  c_diff_electronics->Write();
+  c_diff_firstlast->Write();
   output->Close();
   delete output;
-
-
 
   TCanvas *c_overall2 = new TCanvas("c_overall2","Overall time evolution",900,600);
   c_overall2->cd();
