@@ -142,7 +142,7 @@ void time_evolution_eff(const char *configuration_file = "TimeEvolutionConfig"){
   //load geometry information
   std::map<int,std::vector<int>> geom_chkey_tdc;
   std::map<std::vector<int>,int> geom_tdc_chkey;
-  //read_in_geom("db/FullMRDGeometry_09_29_20.csv",geom_chkey_tdc,geom_tdc_chkey);
+  read_in_geom("db/FullMRDGeometry_09_29_20.csv",geom_chkey_tdc,geom_tdc_chkey);
 
   std::cout <<"2"<<std::endl;
   //Load configfile information
@@ -507,6 +507,27 @@ void time_evolution_eff(const char *configuration_file = "TimeEvolutionConfig"){
   ss_overall << "efficiency_timeevolution/MRDEff_TimeEvolution_Overall_Candle_"<<labels.at(0)<<"_"<<labels.at(labels.size()-1)<<".pdf";
   c_overall->SaveAs(ss_overall.str().c_str());
 
+  std::cout <<"Metastable channels: "<<std::endl;
+  for (int i_meta =0; i_meta < metastable_chkeys.size(); i_meta++){
+    std::cout << metastable_chkeys.at(i_meta)<<" , ";
+  }
+  std::cout << std::endl;
+  std::cout <<"Unstable channels: "<<std::endl;
+  std::stringstream ss_unstable_channels_file;
+  ss_unstable_channels_file << "efficiency_timeevolution/MRDEff_UnstableChannels_"<<labels.at(0)<<"_"<<labels.at(labels.size()-1)<<".csv";
+  ofstream file_unstable(ss_unstable_channels_file.str().c_str());
+  file_unstable << "Chkey, TDC crate, TDC slot, TDC channel, Variation"<<std::endl;
+  for (int i_un =0; i_un < unstable_chkeys.size(); i_un++){
+    std::cout << unstable_chkeys.at(i_un)<<" , ";
+    int temp_chkey = unstable_chkeys.at(i_un);
+    int i_bin = eff_diff_combined->GetXaxis()->FindBin(temp_chkey+0.5);
+    double bin_content = eff_diff_combined->GetBinContent(i_bin);
+    std::vector<int> tdc = geom_chkey_tdc.at(temp_chkey);
+    file_unstable << temp_chkey <<","<<tdc.at(0)<<","<<tdc.at(1)<<","<<tdc.at(2)<<","<<bin_content<<std::endl;
+  }
+  std::cout << std::endl;
+  file_unstable.close();
+
   eff_diff->Write();
   eff_diff_1d->Write();
   eff_diff_run->Write();
@@ -523,16 +544,7 @@ void time_evolution_eff(const char *configuration_file = "TimeEvolutionConfig"){
   output->Close();
   delete output;
 
-  std::cout <<"Metastable channels: "<<std::endl;
-  for (int i_meta =0; i_meta < metastable_chkeys.size(); i_meta++){
-    std::cout << metastable_chkeys.at(i_meta)<<" , ";
-  }
-  std::cout << std::endl;
-  std::cout <<"Unstable channels: "<<std::endl;
-  for (int i_un =0; i_un < unstable_chkeys.size(); i_un++){
-    std::cout << unstable_chkeys.at(i_un)<<" , ";
-  }
-  std::cout << std::endl;
+
 
   TCanvas *c_overall2 = new TCanvas("c_overall2","Overall time evolution",900,600);
   c_overall2->cd();
