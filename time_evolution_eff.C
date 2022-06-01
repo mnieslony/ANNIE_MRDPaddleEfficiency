@@ -499,6 +499,14 @@ void time_evolution_eff(const char *configuration_file = "TimeEvolutionConfig"){
   gr_avg_active->GetYaxis()->SetRangeUser(0.,1.1);
   gr_avg_active->Write();
 
+  TCanvas *c_overall =new TCanvas("c_overall","Overall canvas",900,600);
+  c_overall->cd();
+  eff_time_active->SetStats(0);
+  eff_time_active->Draw("candlex2");
+  std::stringstream ss_overall;
+  ss_overall << "efficiency_timeevolution/MRDEff_TimeEvolution_Overall_Candle_"<<labels.at(0)<<"_"<<labels.at(labels.size()-1)<<".pdf";
+  c_overall->SaveAs(ss_overall.str().c_str());
+
   eff_diff->Write();
   eff_diff_1d->Write();
   eff_diff_run->Write();
@@ -508,7 +516,9 @@ void time_evolution_eff(const char *configuration_file = "TimeEvolutionConfig"){
   eff_time_10->Write();
   eff_time_active->Write();
   multi->Write("multi");
+  //multi_active->Write("multi_active");
   multi2->Write("multi2");
+  //multi2_active->Write("multi2_active");
   inactive_ch->Write();
   output->Close();
   delete output;
@@ -523,6 +533,15 @@ void time_evolution_eff(const char *configuration_file = "TimeEvolutionConfig"){
     std::cout << unstable_chkeys.at(i_un)<<" , ";
   }
   std::cout << std::endl;
+
+  TCanvas *c_overall2 = new TCanvas("c_overall2","Overall time evolution",900,600);
+  c_overall2->cd();
+  multi2->Draw("ALP");
+  ss_overall.str("");
+  ss_overall << "efficiency_timeevolution/MRDEff_TimeEvolution_Overall_"<<labels.at(0)<<"_"<<labels.at(labels.size()-1)<<".pdf";
+  c_overall2->SaveAs(ss_overall.str().c_str());
+
+
 
 
 }
